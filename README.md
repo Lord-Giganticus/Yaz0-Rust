@@ -1,2 +1,2 @@
 # Yaz0-Rust
-Yaz0 Decompression and Compression ported to Rust.
+Yaz0 Decompression ported to Rust.
