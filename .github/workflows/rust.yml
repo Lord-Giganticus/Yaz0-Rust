@@ -14,11 +14,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - run: cargo build --release
+    - run: |
+        pushd ${{ github.workspace }}
+        cargo build --release
+        cd target
+        cd release
+        mv yaz0decomp.exe ${{ github.workspace }}
+        popd
+        ls
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         automatic_release_tag: "Auto"
-        prerelease: false
+        prerelease: true
         title: "Auto Build"
-        files: ${{ github.workspace }}/target/release/yaz0decomp.exe
+        files: yaz0decomp.exe
