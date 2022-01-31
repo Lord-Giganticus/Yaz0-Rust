@@ -1,0 +1,24 @@
+name: Rust
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  Build-Win:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - run: cargo build --release
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "Auto"
+        prerelease: false
+        title: "Auto Build"
+        files: ${{ github.workspace }}/target/release/yaz0decomp.exe
