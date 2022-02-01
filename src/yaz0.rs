@@ -1,4 +1,6 @@
 use std::str;
+use std::io::*;
+use yaz0::deflate::*;
 
 pub fn yaz0decomp(data: &Vec<u8>) -> Vec<u8> {
     let magic = &data[0..4];
@@ -46,4 +48,15 @@ pub fn yaz0decomp(data: &Vec<u8>) -> Vec<u8> {
         }
     }
     output
+}
+
+pub fn yaz0comp(data: &[u8]) -> Vec<u8> {
+    let mut mem = Cursor::new(Vec::new());
+    let writer = Yaz0Writer::new(&mut mem);
+    let quality = CompressionLevel::Lookahead {quality: 10};
+    writer.compress_and_write(data, quality).unwrap();
+    mem.seek(SeekFrom::Start(0)).unwrap();
+    let mut res = Vec::new();
+    mem.read_to_end(&mut res).unwrap();
+    return res;
 }

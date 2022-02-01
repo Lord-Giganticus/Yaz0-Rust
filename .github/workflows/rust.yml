@@ -19,7 +19,7 @@ jobs:
         cargo build --release
         cd target
         cd release
-        mv yaz0decomp.exe ${{ github.workspace }}
+        mv yaz0rust.exe ${{ github.workspace }}
         popd
         ls
     - uses: "marvinpinto/action-automatic-releases@latest"
@@ -28,4 +28,4 @@ jobs:
         automatic_release_tag: "Auto"
         prerelease: true
         title: "Auto Build"
-        files: yaz0decomp.exe
+        files: yaz0rust.exe
