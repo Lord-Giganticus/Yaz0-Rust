@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 yaz0 = "0.3.0"
+indicatif = "0.16.2"
+thread-control = { git = "https://github.com/DenisKolodin/thread-control" }
