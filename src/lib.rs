@@ -1,7 +1,7 @@
 extern crate indicatif;
 extern crate thread_control;
-mod yaz0;
-mod getfile;
+pub mod yaz0;
+pub mod getfile;
 use std::fs::*;
 use std::io::*;
 use std::*;
