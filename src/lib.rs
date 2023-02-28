@@ -1,79 +1,73 @@
-extern crate indicatif;
-extern crate thread_control;
-pub mod yaz0;
-pub mod getfile;
-use std::fs::*;
-use std::io::*;
-use std::*;
-use indicatif::*;
-use thread_control::*;
-pub fn decompress(data: &Vec<u8>) -> Vec<u8> {
-    return yaz0::yaz0decomp(data);
-}
-pub fn compress(data: &Vec<u8>) -> Vec<u8> {
-    return yaz0::yaz0comp(&data);
-}
-pub fn openanddecompress(filename: &String) -> Vec<u8> {
-    let buffer = getfile::get_file_as_byte_vec(filename);
-    return decompress(&buffer);
-}
-pub fn openandcompress(filename: &String) -> Vec<u8> {
-    let buffer = getfile::get_file_as_byte_vec(filename);
-    return compress(&buffer);
-}
-pub fn decompressandwrite(data: &Vec<u8>, path: &String) {
-    let buffer = decompress(&data);
-    let prog = ProgressBar::new(buffer.len() as u64);
-    prog.set_style(ProgressStyle::default_bar()
-    .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes}")
-    .progress_chars("#>-"));
-    let mut file = File::create(path.as_str()).unwrap();
-    let (flag, control) = make_pair();
-    let handel = thread::spawn(move || {
-        while flag.is_alive() {
-            file.write(&buffer).unwrap();
-            break;
+use std::io::{Cursor, BufRead};
+use binrw::prelude::*;
+
+pub type DynamicResult<T> = Result<T, Box<dyn std::error::Error>>;
+
+pub fn decompress<A: AsRef<[u8]>>(buffer: A) -> DynamicResult<Vec<u8>> {
+    let mut stream = Cursor::new(Vec::from(buffer.as_ref()));
+    let mut magic = vec![];
+    stream.read_until(48, &mut magic)?;
+    if magic != b"Yaz0" {
+        return Err(Box::<dyn std::error::Error>::from("Magic does not match."));
+    }
+    let mut size = stream.read_be::<u32>()? as i64;
+    let mut dst = vec![0u8; size as usize];
+    let mut src_offs = 0x10;
+    let mut dst_offs = 0x00;
+    loop {
+        let command_byte = stream.get_ref()[src_offs];
+        src_offs += 1;
+
+        for i in (0..8).rev() {
+            if (command_byte & (1 << i)) != 0 {
+                // Literal.
+                dst[dst_offs] = stream.get_ref()[src_offs];
+                src_offs += 1;
+                dst_offs += 1;
+                size -= 1;
+            } else {
+                stream.set_position(src_offs as u64);
+                let tmp = stream.read_be::<u16>()?;
+                src_offs += 2;
+
+                let window_offset = (tmp & 0x0FFF) + 1;
+                let mut window_length = (tmp >> 12) + 2;
+                if window_length == 2 {
+                    window_length += (stream.get_ref()[src_offs] as u16) + 0x10;
+                    src_offs += 1;
+                }
+
+                assert!(window_length >= 3 && window_length <= 0x111);
+
+                let mut copy_offs = dst_offs - (window_offset as usize);
+                for _ in 0..window_length {
+                    dst[dst_offs] = dst[copy_offs];
+                    dst_offs += 1;
+                    copy_offs += 1;
+                    size -= 1;
+                }
+            }
         }
-    });
-    while !control.is_done() {
-        prog.set_position(fs::metadata(path.as_str()).unwrap().len());
-        if control.is_done() {
-            control.stop();
+        if size <= 0 {
             break;
         }
     }
-    handel.join().unwrap();
-    prog.finish_with_message("Downloaded!");
+    Ok(dst)
 }
-pub fn compressandwrite(data: &Vec<u8>, path: &String) {
-    let buffer = compress(&data);
-    let prog = ProgressBar::new(buffer.len() as u64);
-    prog.set_style(ProgressStyle::default_bar()
-    .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes}")
-    .progress_chars("#>-"));
-    let mut file = File::create(path.as_str()).unwrap();
-    let (flag, control) = make_pair();
-    let handel = thread::spawn(move || {
-        while flag.is_alive() {
-            file.write(&buffer).unwrap();
-            break;
-        }
-    });
-    while !control.is_done() {
-        prog.set_position(fs::metadata(path.as_str()).unwrap().len());
-        if control.is_done() {
-            control.stop();
-            break;
-        }
+
+pub fn compress<A: AsRef<[u8]>>(buffer: A) -> DynamicResult<Vec<u8>> {
+    use yaz0::{CompressionLevel, Yaz0Writer};
+    use std::sync::mpsc::channel;
+    let vec = Vec::from(buffer.as_ref());
+    let mut stream = Cursor::new(vec![0u8; 0]);
+    let writer = Yaz0Writer::new(&mut stream);
+    let (sender, recv) = channel();
+    let level = CompressionLevel::Lookahead { quality: 10 };
+    writer.compress_and_write_with_progress(&vec, level, sender)?;
+    while let Ok(msg) = recv.try_recv() {
+        print!("{} out of {} written", msg.read_head, vec.len());
+        print!("\x1B[2J\x1B[1;1H");
     }
-    handel.join().unwrap();
-    prog.finish_with_message("Downloaded!");
-}
-pub fn openandcompressandwrite(compressed: &String, path: &String) {
-    let buffer = getfile::get_file_as_byte_vec(compressed);
-    decompressandwrite(&buffer, path);
-}
-pub fn openanddecompressandwrite(compressed: &String, path: &String) {
-    let buffer = getfile::get_file_as_byte_vec(compressed);
-    compressandwrite(&buffer, path);
+    println!("{} out of {} written", vec.len(), vec.len());
+    Ok(stream.into_inner())
 }
