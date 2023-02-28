@@ -8,7 +8,7 @@ pub fn decompress<A: AsRef<[u8]>>(buffer: A) -> DynamicResult<Vec<u8>> {
     let mut magic = vec![];
     stream.read_until(48, &mut magic)?;
     if magic != b"Yaz0" {
-        return Err(Box::<dyn std::error::Error>::from("Magic does not match."));
+        return Err(Box::from("Magic does not match."));
     }
     let mut size = stream.read_be::<u32>()? as i64;
     let mut dst = vec![0u8; size as usize];
@@ -37,7 +37,9 @@ pub fn decompress<A: AsRef<[u8]>>(buffer: A) -> DynamicResult<Vec<u8>> {
                     src_offs += 1;
                 }
 
-                assert!(window_length >= 3 && window_length <= 0x111);
+                if window_length >= 3 && window_length <= 0x111 {
+                    return Err(Box::from("window_length was out of bounds."));
+                }
 
                 let mut copy_offs = dst_offs - (window_offset as usize);
                 for _ in 0..window_length {
