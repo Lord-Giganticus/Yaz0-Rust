@@ -73,3 +73,48 @@ pub fn compress<A: AsRef<[u8]>>(buffer: A) -> DynamicResult<Vec<u8>> {
     println!("{} out of {} written", vec.len(), vec.len());
     Ok(stream.into_inner())
 }
+
+#[cfg(feature = "cxx")]
+#[cxx::bridge]
+mod ffi {
+    extern "Rust" {
+        fn cxxcompress(buffer: &Vec<u8>) -> Vec<u8>;
+        fn cxxdeompress(buffer: &Vec<u8>) -> Vec<u8>;
+    }
+}
+
+#[cfg(feature = "cxx")]
+pub(crate) fn cxxcompress(buffer: &Vec<u8>) -> Vec<u8> {
+    compress(buffer).unwrap_or_default()
+}
+
+#[cfg(feature = "cxx")]
+pub(crate) fn cxxdeompress(buffer: &Vec<u8>) -> Vec<u8> {
+    decompress(buffer).unwrap_or_default()
+}
+
+#[cfg(feature = "cabi")]
+#[no_mangle]
+pub unsafe extern "C" fn CompressPtr(ptr: *const u8, len: *mut usize) -> *mut u8 {
+    let buffer = std::slice::from_raw_parts(ptr, *len);
+    let result = compress(buffer).unwrap_or_default();
+    *len = result.len();
+    Box::into_raw(result.into_boxed_slice()).cast()
+}
+
+#[cfg(feature = "cabi")]
+#[no_mangle]
+pub unsafe extern "C" fn DecompressPtr(ptr: *const u8, len: *mut usize) -> *mut u8 {
+    let buffer = std::slice::from_raw_parts(ptr, *len);
+    let result = decompress(buffer).unwrap_or_default();
+    *len = result.len();
+    Box::into_raw(result.into_boxed_slice()).cast()
+}
+
+#[cfg(feature = "cabi")]
+#[no_mangle]
+pub unsafe extern "C" fn deallocarray(data: *mut u8, len: usize) {
+    let slice = std::ptr::slice_from_raw_parts_mut(data, len);
+    let buffer = Box::from_raw(slice);
+    drop(buffer);
+}
