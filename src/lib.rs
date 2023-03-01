@@ -37,6 +37,7 @@ pub fn decompress<A: AsRef<[u8]>>(buffer: A) -> DynamicResult<Vec<u8>> {
                     src_offs += 1;
                 }
 
+                #[cfg(not(any(feature = "cabi", feature = "cxx")))]
                 if window_length >= 3 && window_length <= 0x111 {
                     return Err(Box::from("window_length was out of bounds."));
                 }
@@ -85,19 +86,19 @@ mod ffi {
 
 #[cfg(feature = "cxx")]
 pub(crate) fn cxxcompress(buffer: &Vec<u8>) -> Vec<u8> {
-    compress(buffer).unwrap_or_default()
+    compress(buffer).unwrap()
 }
 
 #[cfg(feature = "cxx")]
 pub(crate) fn cxxdeompress(buffer: &Vec<u8>) -> Vec<u8> {
-    decompress(buffer).unwrap_or_default()
+    decompress(buffer).unwrap()
 }
 
 #[cfg(feature = "cabi")]
 #[no_mangle]
 pub unsafe extern "C" fn CompressPtr(ptr: *const u8, len: *mut usize) -> *mut u8 {
     let buffer = std::slice::from_raw_parts(ptr, *len);
-    let result = compress(buffer).unwrap_or_default();
+    let result = compress(buffer).unwrap();
     *len = result.len();
     Box::into_raw(result.into_boxed_slice()).cast()
 }
@@ -106,7 +107,7 @@ pub unsafe extern "C" fn CompressPtr(ptr: *const u8, len: *mut usize) -> *mut u8
 #[no_mangle]
 pub unsafe extern "C" fn DecompressPtr(ptr: *const u8, len: *mut usize) -> *mut u8 {
     let buffer = std::slice::from_raw_parts(ptr, *len);
-    let result = decompress(buffer).unwrap_or_default();
+    let result = decompress(buffer).unwrap();
     *len = result.len();
     Box::into_raw(result.into_boxed_slice()).cast()
 }
