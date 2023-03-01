@@ -11,3 +11,5 @@ Cargo.lock
 
 # Extra
 .vscode
+*.hh
+*.h

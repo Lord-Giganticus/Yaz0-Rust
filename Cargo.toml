@@ -1,6 +1,6 @@
 [package]
 name = "yaz0_rust"
-version = "1.1.1"
+version = "1.1.2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -11,6 +11,7 @@ cxx = { version = "1.0.91", optional = true }
 yaz0 = { version = "0.3.0" }
 
 [build-dependencies]
+cbindgen = { version = "0.24.3", default-features = false }
 cxx-build = { version = "1.0.91" }
 
 [features]
