@@ -37,11 +37,6 @@ pub fn decompress<A: AsRef<[u8]>>(buffer: A) -> DynamicResult<Vec<u8>> {
                     src_offs += 1;
                 }
 
-                #[cfg(not(any(feature = "cabi", feature = "cxx")))]
-                if window_length >= 3 && window_length <= 0x111 {
-                    return Err(Box::from("window_length was out of bounds."));
-                }
-
                 let mut copy_offs = dst_offs - (window_offset as usize);
                 for _ in 0..window_length {
                     dst[dst_offs] = dst[copy_offs];
